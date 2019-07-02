@@ -22,8 +22,8 @@ public class IndexAnalyzerMigrator {
     public static void migrate(File oldDirectory, File newDirectory, Analyzer newAnalyzer) throws IOException {
 
         try (
-            NIOFSDirectory oldDir = new NIOFSDirectory(oldDirectory);
-            NIOFSDirectory newDir = new NIOFSDirectory(newDirectory);
+            NIOFSDirectory oldDir = new NIOFSDirectory(oldDirectory.toPath());
+            NIOFSDirectory newDir = new NIOFSDirectory(newDirectory.toPath());
 
             IndexWriter oldWriter = indexWriter(oldDir);
             IndexWriter newWriter = indexWriter(newDir, newAnalyzer);

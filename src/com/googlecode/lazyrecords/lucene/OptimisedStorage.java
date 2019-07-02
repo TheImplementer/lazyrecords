@@ -1,6 +1,9 @@
 package com.googlecode.lazyrecords.lucene;
 
-import com.googlecode.totallylazy.*;
+import com.googlecode.totallylazy.Callable1;
+import com.googlecode.totallylazy.Files;
+import com.googlecode.totallylazy.Function2;
+import com.googlecode.totallylazy.Sequence;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.CheckIndex;
 import org.apache.lucene.index.IndexCommit;
@@ -59,12 +62,7 @@ public class OptimisedStorage implements LuceneStorage {
 
     @Override
     public int count(final Query query) throws IOException {
-        return search(new Callable1<Searcher, Integer>() {
-            @Override
-            public Integer call(Searcher searcher) throws Exception {
-                return searcher.count(query);
-            }
-        });
+        return search(searcher -> searcher.count(query));
     }
 
     @Override
@@ -87,7 +85,7 @@ public class OptimisedStorage implements LuceneStorage {
         synchronized (lock) {
             CheckIndex checkIndex = new CheckIndex(writer.getDirectory());
             CheckIndex.Status status = checkIndex.checkIndex();
-            checkIndex.fixIndex(status);
+            checkIndex.exorciseIndex(status);
         }
     }
 
@@ -100,13 +98,13 @@ public class OptimisedStorage implements LuceneStorage {
             indexCommit = snapShotter.snapshot();
             using(directoryFor(folder), copy(indexCommit.getFileNames()).apply(writer.getDirectory()));
         } finally {
-            if(indexCommit != null) snapShotter.release(indexCommit);
+            if (indexCommit != null) snapShotter.release(indexCommit);
             writer.deleteUnusedFiles();
         }
     }
 
     private Directory directoryFor(File file) throws IOException {
-        return new NIOFSDirectory(file);
+        return new NIOFSDirectory(file.toPath());
     }
 
     public static Function2<Directory, Directory, Void> copy(final Collection<String> strings) {
@@ -121,7 +119,7 @@ public class OptimisedStorage implements LuceneStorage {
 
     public static void copy(Directory source, Directory destination, Collection<String> strings) throws IOException {
         for (String segment : strings) {
-            source.copy(destination, segment, segment, IOContext.DEFAULT);
+            destination.copyFrom(source, segment, segment, IOContext.DEFAULT);
         }
     }
 
@@ -142,11 +140,6 @@ public class OptimisedStorage implements LuceneStorage {
             writer = null;
             pool.close();
         } catch (Throwable ignored) {
-        } finally {
-            try {
-                ensureDirectoryUnlocked();
-            } catch (Throwable ignored) {
-            }
         }
     }
 
@@ -154,12 +147,6 @@ public class OptimisedStorage implements LuceneStorage {
     public void flush() throws IOException {
         writer.commit();
         pool.markAsDirty();
-    }
-
-    private void ensureDirectoryUnlocked() throws IOException {
-        if (IndexWriter.isLocked(writer.getDirectory())) {
-            IndexWriter.unlock(writer.getDirectory());
-        }
     }
 
 }

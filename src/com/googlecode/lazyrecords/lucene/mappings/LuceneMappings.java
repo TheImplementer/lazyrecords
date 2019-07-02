@@ -1,32 +1,17 @@
 package com.googlecode.lazyrecords.lucene.mappings;
 
-import com.googlecode.lazyrecords.Definition;
-import com.googlecode.lazyrecords.Keyword;
 import com.googlecode.lazyrecords.Record;
-import com.googlecode.lazyrecords.RecordTo;
-import com.googlecode.lazyrecords.SourceRecord;
-import com.googlecode.lazyrecords.ToRecord;
+import com.googlecode.lazyrecords.*;
 import com.googlecode.lazyrecords.lucene.Lucene;
 import com.googlecode.lazyrecords.mappings.StringMappings;
-import com.googlecode.totallylazy.Callables;
-import com.googlecode.totallylazy.Function1;
-import com.googlecode.totallylazy.Function2;
-import com.googlecode.totallylazy.Pair;
-import com.googlecode.totallylazy.Predicates;
-import com.googlecode.totallylazy.Sequence;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.TextField;
+import com.googlecode.totallylazy.*;
+import org.apache.lucene.document.*;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.util.BytesRef;
 
 import static com.googlecode.lazyrecords.Definition.methods.sortFields;
 import static com.googlecode.lazyrecords.Record.functions.updateValues;
-import static com.googlecode.totallylazy.Predicates.in;
-import static com.googlecode.totallylazy.Predicates.is;
-import static com.googlecode.totallylazy.Predicates.notNullValue;
-import static com.googlecode.totallylazy.Predicates.where;
+import static com.googlecode.totallylazy.Predicates.*;
 import static com.googlecode.totallylazy.Sequences.sequence;
 
 public class LuceneMappings {
@@ -76,9 +61,10 @@ public class LuceneMappings {
         };
     }
 
-    public Function1<Pair<Keyword<?>, Object>, IndexableField> asField(final Sequence<Keyword<?>> definitions) {
-        return new Function1<Pair<Keyword<?>, Object>, IndexableField>() {
-            public IndexableField call(Pair<Keyword<?>, Object> pair) throws Exception {
+    public Function1<Pair<Keyword<?>, Object>, Pair<IndexableField, SortedDocValuesField>> asField(final Sequence<Keyword<?>> definitions) {
+        return new Function1<Pair<Keyword<?>, Object>, Pair<IndexableField, SortedDocValuesField>>() {
+            @Override
+            public Pair<IndexableField, SortedDocValuesField> call(Pair<Keyword<?>, Object> pair) throws Exception {
                 if (pair.second() == null) {
                     return null;
                 }
@@ -87,7 +73,9 @@ public class LuceneMappings {
                 Keyword<?> keyword = Keyword.methods.matchKeyword(name, definitions);
                 FieldType fieldType = new FieldType(TextField.TYPE_STORED);
                 fieldType.setOmitNorms(false);
-                return new Field(name, LuceneMappings.this.stringMappings.toString(keyword.forClass(), pair.second()), fieldType);
+                SortedDocValuesField sortedDocValuesField = new SortedDocValuesField(name, new BytesRef(LuceneMappings.this.stringMappings.toString(keyword.forClass(), pair.second())));
+                Field field = new Field(name, LuceneMappings.this.stringMappings.toString(keyword.forClass(), pair.second()), fieldType);
+                return Pair.pair(field, sortedDocValuesField);
             }
         };
     }
@@ -104,10 +92,12 @@ public class LuceneMappings {
         };
     }
 
-    public static Function2<? super Document, ? super IndexableField, Document> intoFields() {
-        return new Function2<Document, IndexableField, Document>() {
-            public Document call(Document document, IndexableField fieldable) throws Exception {
-                document.add(fieldable);
+    public static Function2<? super Document, Pair<IndexableField, SortedDocValuesField>, Document> intoFields() {
+        return new Function2<Document, Pair<IndexableField, SortedDocValuesField>, Document>() {
+            @Override
+            public Document call(Document document, Pair<IndexableField, SortedDocValuesField> fieldable) throws Exception {
+                document.add(fieldable.first());
+                document.add(fieldable.second());
                 return document;
             }
         };

@@ -7,7 +7,7 @@ import java.io.IOException;
 
 public class NoSyncDirectory extends NIOFSDirectory {
     public NoSyncDirectory(File file) throws IOException {
-        super(file);
+        super(file.toPath());
     }
 
     @Override

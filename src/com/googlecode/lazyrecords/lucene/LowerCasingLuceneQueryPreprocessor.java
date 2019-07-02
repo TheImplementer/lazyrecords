@@ -3,17 +3,8 @@ package com.googlecode.lazyrecords.lucene;
 import com.googlecode.funclate.internal.lazyparsec.functors.Unary;
 import com.googlecode.totallylazy.Sequence;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.search.FuzzyQuery;
-import org.apache.lucene.search.MultiPhraseQuery;
-import org.apache.lucene.search.PhraseQuery;
-import org.apache.lucene.search.PrefixQuery;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TermQuery;
-import org.apache.lucene.search.TermRangeQuery;
-import org.apache.lucene.search.WildcardQuery;
+import org.apache.lucene.search.*;
 import org.apache.lucene.util.BytesRef;
-
-import java.util.List;
 
 import static com.googlecode.totallylazy.Sequences.sequence;
 
@@ -48,12 +39,12 @@ public class LowerCasingLuceneQueryPreprocessor extends DoNothingLuceneQueryPrep
     public Query process(PhraseQuery query) {
         final Term[] terms = query.getTerms();
         final int[] positions = query.getPositions();
-        final PhraseQuery toReturn = new PhraseQuery();
+        final PhraseQuery.Builder toReturn = new PhraseQuery.Builder();
         toReturn.setSlop(query.getSlop());
         for (int i = 0; i < terms.length; i++) {
             toReturn.add(asLowercaseTerm(terms[i]), positions[i]);
         }
-        return toReturn;
+        return toReturn.build();
     }
 
     @Override
@@ -64,15 +55,15 @@ public class LowerCasingLuceneQueryPreprocessor extends DoNothingLuceneQueryPrep
 
     @Override
     public Query process(MultiPhraseQuery query) {
-        final List<Term[]> termArrays = query.getTermArrays();
+        final Term[][] termArrays = query.getTermArrays();
         final int[] positions = query.getPositions();
-        final MultiPhraseQuery toReturn = new MultiPhraseQuery();
+        final MultiPhraseQuery.Builder toReturn = new MultiPhraseQuery.Builder();
         toReturn.setSlop(query.getSlop());
-        for (int i = 0; i < termArrays.size(); i++) {
-            final Sequence<Term> lowerCasedTerms = sequence(termArrays.get(i)).map(asLowerCaseTerm());
+        for (int i = 0; i < termArrays.length; i++) {
+            final Sequence<Term> lowerCasedTerms = sequence(termArrays[i]).map(asLowerCaseTerm());
             toReturn.add(lowerCasedTerms.toArray(Term.class), positions[i]);
         }
-        return toReturn;
+        return toReturn.build();
     }
 
     private Unary<Term> asLowerCaseTerm() {

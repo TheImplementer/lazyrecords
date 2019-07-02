@@ -5,17 +5,18 @@ import com.googlecode.lazyrecords.Keyword;
 import com.googlecode.lazyrecords.Named;
 import com.googlecode.lazyrecords.Record;
 import com.googlecode.lazyrecords.mappings.StringMappings;
-import com.googlecode.totallylazy.*;
+import com.googlecode.totallylazy.Function1;
+import com.googlecode.totallylazy.Function2;
+import com.googlecode.totallylazy.Predicate;
 import com.googlecode.totallylazy.annotations.multimethod;
+import com.googlecode.totallylazy.multi;
 import com.googlecode.totallylazy.predicates.*;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.*;
 
 import static com.googlecode.lazyrecords.Keyword.constructors.keyword;
 import static com.googlecode.totallylazy.Sequences.sequence;
-import static org.apache.lucene.search.BooleanClause.Occur.MUST;
-import static org.apache.lucene.search.BooleanClause.Occur.MUST_NOT;
-import static org.apache.lucene.search.BooleanClause.Occur.SHOULD;
+import static org.apache.lucene.search.BooleanClause.Occur.*;
 
 public class Lucene {
     public static final Keyword<String> RECORD_KEY = keyword("type", String.class);
@@ -38,7 +39,7 @@ public class Lucene {
     }
 
     public static Query and(Iterable<Query> queries) {
-        return booleanQuery(queries, MUST);
+        return booleanQuery(queries, MUST).build();
     }
 
     public static Query or(Query... queries) {
@@ -46,7 +47,7 @@ public class Lucene {
     }
 
     public static Query or(Iterable<Query> queries) {
-        return booleanQuery(queries, SHOULD);
+        return booleanQuery(queries, SHOULD).build();
     }
 
     public static Query not(Query... queries) {
@@ -54,22 +55,23 @@ public class Lucene {
     }
 
     public static Query not(Iterable<Query> queries) {
-        BooleanQuery seed = new BooleanQuery();
+        BooleanQuery.Builder seed = new BooleanQuery.Builder();
         seed.add(all(), SHOULD); // Fixes weird Lucene bugs where it does not understand negative queries
-        return booleanQuery(queries, MUST_NOT, seed);
+        return booleanQuery(queries, MUST_NOT, seed).build();
     }
 
-    private static BooleanQuery booleanQuery(Iterable<Query> queries, BooleanClause.Occur occur) {
-        return sequence(queries).fold(new BooleanQuery(), add(occur));
+    private static BooleanQuery.Builder booleanQuery(Iterable<Query> queries, BooleanClause.Occur occur) {
+        return sequence(queries).fold(new BooleanQuery.Builder(), add(occur));
     }
 
-    private static BooleanQuery booleanQuery(Iterable<Query> queries, BooleanClause.Occur occur, BooleanQuery seed) {
+    private static BooleanQuery.Builder booleanQuery(Iterable<Query> queries, BooleanClause.Occur occur, BooleanQuery.Builder seed) {
         return sequence(queries).fold(seed, add(occur));
     }
 
-    private static Function2<BooleanQuery, Query, BooleanQuery> add(final BooleanClause.Occur occur) {
-        return new Function2<BooleanQuery, Query, BooleanQuery>() {
-            public BooleanQuery call(BooleanQuery booleanQuery, Query query) throws Exception {
+    private static Function2<BooleanQuery.Builder, Query, BooleanQuery.Builder> add(final BooleanClause.Occur occur) {
+        return new Function2<BooleanQuery.Builder, Query, BooleanQuery.Builder>() {
+            @Override
+            public BooleanQuery.Builder call(BooleanQuery.Builder booleanQuery, Query query) throws Exception {
                 booleanQuery.add(query, occur);
                 return booleanQuery;
             }
@@ -83,34 +85,110 @@ public class Lucene {
     }
 
     private multi queryP;
+
     public Query query(Predicate<? super Record> predicate) {
-        if(queryP == null) queryP = new multi(){};
+        if (queryP == null) queryP = new multi() {
+        };
         return queryP.<Query>methodOption(predicate).getOrThrow(new UnsupportedOperationException());
     }
-    @multimethod public Query query(WherePredicate<Record, ?> wherePredicate) { return where(wherePredicate); }
-    @multimethod public Query query(AndPredicate<Record> andPredicate) { return and(andPredicate.predicates().map(asQuery())); }
-    @multimethod public Query query(OrPredicate<Record> orPredicate) { return or(orPredicate.predicates().map(asQuery())); }
-    @multimethod public Query query(Not<Record> notPredicate) { return not(query(notPredicate.predicate())); }
-    @multimethod public Query query(AlwaysTrue alwaysTrue) { return all(); }
-    @multimethod public Query query(AlwaysFalse alwaysFalse) { return not(all()); }
+
+    @multimethod
+    public Query query(WherePredicate<Record, ?> wherePredicate) {
+        return where(wherePredicate);
+    }
+
+    @multimethod
+    public Query query(AndPredicate<Record> andPredicate) {
+        return and(andPredicate.predicates().map(asQuery()));
+    }
+
+    @multimethod
+    public Query query(OrPredicate<Record> orPredicate) {
+        return or(orPredicate.predicates().map(asQuery()));
+    }
+
+    @multimethod
+    public Query query(Not<Record> notPredicate) {
+        return not(query(notPredicate.predicate()));
+    }
+
+    @multimethod
+    public Query query(AlwaysTrue alwaysTrue) {
+        return all();
+    }
+
+    @multimethod
+    public Query query(AlwaysFalse alwaysFalse) {
+        return not(all());
+    }
 
     private multi queryKP;
+
     public Query query(Keyword<?> keyword, Predicate<?> predicate) {
-        if(queryKP == null) queryKP = new multi(){};
+        if (queryKP == null) queryKP = new multi() {
+        };
         return queryKP.<Query>methodOption(keyword, predicate).getOrThrow(new UnsupportedOperationException());
     }
-    @multimethod public Query query(Keyword<?> keyword, EqualsPredicate<?> predicate) { return equalTo(keyword, predicate.value()); }
-    @multimethod public Query query(Keyword<?> keyword, GreaterThan<?> predicate) { return greaterThan(keyword, predicate.value()); }
-    @multimethod public Query query(Keyword<?> keyword, GreaterThanOrEqualTo<?> predicate) { return greaterThanOrEqual(keyword, predicate.value()); }
-    @multimethod public Query query(Keyword<?> keyword, LessThan<?> predicate) { return lessThan(keyword, predicate.value()); }
-    @multimethod public Query query(Keyword<?> keyword, LessThanOrEqualTo<?> predicate) { return lessThanOrEqual(keyword, predicate.value()); }
-    @multimethod public Query query(Keyword<?> keyword, Between<?> predicate) { return between(keyword, predicate.lower(), predicate.upper()); }
-    @multimethod public Query query(Keyword<?> keyword, Not<?> predicate) { return not(query(keyword, predicate.predicate())); }
-    @multimethod public Query query(Keyword<?> keyword, InPredicate<?> predicate) { return or(sequence(predicate.values()).map(asQuery(keyword))); }
-    @multimethod public Query query(Keyword<?> keyword, StartsWithPredicate predicate) { return new PrefixQuery(new Term(keyword.name(), predicate.value())); }
-    @multimethod public Query query(Keyword<?> keyword, ContainsPredicate predicate) { return new WildcardQuery(new Term(keyword.name(), "*" + predicate.value() + "*")); }
-    @multimethod public Query query(Keyword<?> keyword, EndsWithPredicate predicate) { return new WildcardQuery(new Term(keyword.name(), "*" + predicate.value())); }
-    @multimethod public Query query(Keyword<?> keyword, NullPredicate<?> predicate) { return nullValue(keyword); }
+
+    @multimethod
+    public Query query(Keyword<?> keyword, EqualsPredicate<?> predicate) {
+        return equalTo(keyword, predicate.value());
+    }
+
+    @multimethod
+    public Query query(Keyword<?> keyword, GreaterThan<?> predicate) {
+        return greaterThan(keyword, predicate.value());
+    }
+
+    @multimethod
+    public Query query(Keyword<?> keyword, GreaterThanOrEqualTo<?> predicate) {
+        return greaterThanOrEqual(keyword, predicate.value());
+    }
+
+    @multimethod
+    public Query query(Keyword<?> keyword, LessThan<?> predicate) {
+        return lessThan(keyword, predicate.value());
+    }
+
+    @multimethod
+    public Query query(Keyword<?> keyword, LessThanOrEqualTo<?> predicate) {
+        return lessThanOrEqual(keyword, predicate.value());
+    }
+
+    @multimethod
+    public Query query(Keyword<?> keyword, Between<?> predicate) {
+        return between(keyword, predicate.lower(), predicate.upper());
+    }
+
+    @multimethod
+    public Query query(Keyword<?> keyword, Not<?> predicate) {
+        return not(query(keyword, predicate.predicate()));
+    }
+
+    @multimethod
+    public Query query(Keyword<?> keyword, InPredicate<?> predicate) {
+        return or(sequence(predicate.values()).map(asQuery(keyword)));
+    }
+
+    @multimethod
+    public Query query(Keyword<?> keyword, StartsWithPredicate predicate) {
+        return new PrefixQuery(new Term(keyword.name(), predicate.value()));
+    }
+
+    @multimethod
+    public Query query(Keyword<?> keyword, ContainsPredicate predicate) {
+        return new WildcardQuery(new Term(keyword.name(), "*" + predicate.value() + "*"));
+    }
+
+    @multimethod
+    public Query query(Keyword<?> keyword, EndsWithPredicate predicate) {
+        return new WildcardQuery(new Term(keyword.name(), "*" + predicate.value()));
+    }
+
+    @multimethod
+    public Query query(Keyword<?> keyword, NullPredicate<?> predicate) {
+        return nullValue(keyword);
+    }
 
     private Query newRange(Keyword<?> keyword, Object lower, Object upper, boolean minInclusive, boolean maxInclusive) {
         return TermRangeQuery.newStringRange(keyword.name(), lower == null ? null : mappings.toString(keyword.forClass(), lower), upper == null ? null : mappings.toString(keyword.forClass(), upper), minInclusive, maxInclusive);

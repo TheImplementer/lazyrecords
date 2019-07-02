@@ -16,10 +16,10 @@ import static com.googlecode.totallylazy.Sequences.one;
 
 public class IndexMigrator {
     public static void migrate(File old, File newStructure) throws IOException {
-        final NIOFSDirectory oldDir = new NIOFSDirectory(old);
+        final NIOFSDirectory oldDir = new NIOFSDirectory(old.toPath());
         final IndexWriter oldWriter = indexWriter(oldDir);
         final OptimisedStorage oldStorage = new OptimisedStorage(oldWriter);
-        final NIOFSDirectory newDir = new NIOFSDirectory(newStructure);
+        final NIOFSDirectory newDir = new NIOFSDirectory(newStructure.toPath());
 
         final NameToLuceneStorageFunction storageActivator = new ClosingNameToLuceneStorageFunction(new NameToLuceneDirectoryFunction(Callables.<String, Directory>ignoreAndReturn(newDir)), new KeywordAnalyzer());
 

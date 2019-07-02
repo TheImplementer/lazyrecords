@@ -39,7 +39,7 @@ public class LucenePool implements SearcherPool {
         return new Function<SearcherManager>() {
             @Override
             public SearcherManager call() throws Exception {
-                return new SearcherManager(writer, true, null);
+                return new SearcherManager(writer, true, true, null);
             }
         }.lazy();
     }

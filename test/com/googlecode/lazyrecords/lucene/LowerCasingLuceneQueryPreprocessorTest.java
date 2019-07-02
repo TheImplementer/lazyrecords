@@ -1,6 +1,6 @@
 package com.googlecode.lazyrecords.lucene;
 
-import com.googlecode.totallylazy.Callable1;
+import com.googlecode.totallylazy.Sequences;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.FuzzyQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
@@ -67,21 +67,21 @@ public class LowerCasingLuceneQueryPreprocessorTest {
 
     @Test
     public void shouldLowercaseAllTermsInAPhraseQuery() {
-        final PhraseQuery query = new PhraseQuery();
+        final PhraseQuery.Builder query = new PhraseQuery.Builder();
         query.add(new Term("field", "VaLue1"));
         query.add(new Term("field", "vAlUE2"));
-        final PhraseQuery visited = cast(visitor.process(query));
+        final PhraseQuery visited = cast(visitor.process(query.build()));
 
         assertThat(sequence(visited.getTerms()), contains(new Term("field", "value1"), new Term("field", "value2")));
     }
 
     @Test
     public void shouldKeepSlopInAPhraseQuery() throws Exception {
-        final PhraseQuery query = new PhraseQuery();
+        final PhraseQuery.Builder query = new PhraseQuery.Builder();
         query.add(new Term("field", "Value"));
         query.setSlop(3);
 
-        final PhraseQuery visited = cast(visitor.process(query));
+        final PhraseQuery visited = cast(visitor.process(query.build()));
 
         assertThat(visited.getSlop(), is(3));
     }
@@ -96,32 +96,27 @@ public class LowerCasingLuceneQueryPreprocessorTest {
 
     @Test
     public void shouldLowercaseAllTermsInAMultiPhraseQuery() throws Exception {
-        final MultiPhraseQuery query = new MultiPhraseQuery();
+        final MultiPhraseQuery.Builder query = new MultiPhraseQuery.Builder();
         query.add(new Term("field", "VaLuE1"));
         query.add(new Term[]{new Term("field", "VALUE2"), new Term("field", "vAlUe3")});
 
-        final MultiPhraseQuery visited = cast(visitor.process(query));
+        final MultiPhraseQuery visited = cast(visitor.process(query.build()));
 
         assertThat(flatTerms(visited.getTermArrays()), contains(new Term("field", "value1"), new Term("field", "value2"), new Term("field", "value3")));
     }
 
     @Test
     public void shouldKeepSlopInAMultiPhraseQuery() throws Exception {
-        final MultiPhraseQuery query = new MultiPhraseQuery();
+        final MultiPhraseQuery.Builder query = new MultiPhraseQuery.Builder();
         query.add(new Term("field", "Value"));
         query.setSlop(3);
 
-        final MultiPhraseQuery visited = cast(visitor.process(query));
+        final MultiPhraseQuery visited = cast(visitor.process(query.build()));
 
         assertThat(visited.getSlop(), is(3));
     }
 
-    private List<Term> flatTerms(List<Term[]> terms) {
-        return sequence(terms).flatMap(new Callable1<Term[], Iterable<Term>>() {
-            @Override
-            public Iterable<Term> call(Term[] terms) throws Exception {
-                return sequence(terms);
-            }
-        }).toList();
+    private List<Term> flatTerms(Term[][] terms) {
+        return sequence(terms).flatMap(Sequences::sequence).toList();
     }
 }

@@ -15,7 +15,6 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.store.RAMDirectory;
-import org.apache.lucene.util.Version;
 
 import java.io.File;
 import java.io.IOException;
@@ -50,7 +49,7 @@ public interface PartitionedIndex extends Persistence {
             return new Function1<String, Directory>() {
                 @Override
                 public Directory call(String definition) throws Exception {
-                    return new NIOFSDirectory(Files.directory(rootDirectory, definition));
+                    return new NIOFSDirectory(Files.directory(rootDirectory, definition).toPath());
                 }
             };
         }
@@ -59,7 +58,7 @@ public interface PartitionedIndex extends Persistence {
             return new Function1<String, Directory>() {
                 @Override
                 public Directory call(String definition) throws Exception {
-                    return new MMapDirectory(Files.directory(rootDirectory, definition));
+                    return new MMapDirectory(Files.directory(rootDirectory, definition).toPath());
                 }
             };
         }
@@ -73,7 +72,7 @@ public interface PartitionedIndex extends Persistence {
         public static IndexWriter indexWriter(Directory directory, Analyzer analyzer) {
             final IndexWriter writer;
             try {
-                writer = new IndexWriter(directory, new IndexWriterConfig(Version.LUCENE_4_10_0, analyzer).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND).setIndexDeletionPolicy(new SnapshotDeletionPolicy(new KeepOnlyLastCommitDeletionPolicy())));
+                writer = new IndexWriter(directory, new IndexWriterConfig(analyzer).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND).setIndexDeletionPolicy(new SnapshotDeletionPolicy(new KeepOnlyLastCommitDeletionPolicy())));
                 writer.commit();
                 return writer;
             } catch (IOException e) {

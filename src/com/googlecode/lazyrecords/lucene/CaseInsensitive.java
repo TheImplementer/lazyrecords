@@ -7,8 +7,6 @@ import org.apache.lucene.analysis.core.KeywordTokenizer;
 import org.apache.lucene.analysis.core.LowerCaseFilter;
 import org.apache.lucene.analysis.miscellaneous.TrimFilter;
 
-import java.io.Reader;
-
 public class CaseInsensitive {
 
     public static Analyzer queryAnalyzer() {
@@ -19,10 +17,11 @@ public class CaseInsensitive {
         return new LowerCasingLuceneQueryPreprocessor();
     }
 
-
     public static class StringPhraseAnalyzer extends Analyzer {
-        protected TokenStreamComponents createComponents(String fieldName, Reader reader) {
-            Tokenizer tok = new KeywordTokenizer(reader);
+
+        @Override
+        protected TokenStreamComponents createComponents(String fieldName) {
+            Tokenizer tok = new KeywordTokenizer();
             TokenFilter filter = new LowerCaseFilter(tok);
             filter = new TrimFilter(filter);
             return new TokenStreamComponents(tok, filter);

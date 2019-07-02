@@ -22,13 +22,7 @@ public class LuceneSearcher implements Searcher {
     @Override
     public TopDocs search(Query query, Sort sort, int end) throws IOException {
         if (sortSpecified(sort)) return searcher.search(query, end, sort);
-        return this.search(query, end);
-    }
-
-    public TopDocs search(Query query, int end) throws IOException {
-        NonScoringCollector results = new NonScoringCollector(end);
-        searcher.search(query, results);
-        return results.topDocs();
+        return searcher.search(query, end);
     }
 
     @Override
